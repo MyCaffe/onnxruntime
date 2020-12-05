@@ -123,6 +123,9 @@ void CUDAExecutionProvider::UpdateProviderOptionsInfo() {
   } else {
     strategy = "unknown";
   }
+  options["arena_extend_strategy"] = strategy;	
+
+  IExecutionProvider::SetProviderOptions(options);
 }
 
 CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& info)
