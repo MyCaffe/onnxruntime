@@ -150,63 +150,101 @@ struct OrtValueCollection {
   OrtValue** rgvalues_;
   char** rgnames_;
   bool* rgname_owned_;
+  bool* rgval_owned_;
+  bool owning_any_;
 };
+
+#define VALUE_COLLECTION_MAX_CAPACITY 128
 
 class OrtValueCollectionEx : public OrtValueCollection {
  public:
   OrtValueCollectionEx(int nCapacity) {
     capacity_ = nCapacity;
     count_ = 0;
-    rgvalues_ = new OrtValue*[nCapacity];
-    rgnames_ = new char*[nCapacity];
-    rgname_owned_ = new bool[nCapacity];
+    rgvalues_ = new OrtValue*[capacity_];
+    rgnames_ = new char*[capacity_];
+    rgname_owned_ = new bool[capacity_];
+    rgval_owned_ = new bool[capacity_];
+    owning_any_ = false;
 
-    for (int i = 0; i < nCapacity; i++) {
+    for (int i = 0; i < capacity_; i++) {
       rgvalues_[i] = nullptr;
       rgnames_[i] = nullptr;
       rgname_owned_[i] = false;
+      rgval_owned_[i] = false;
+    }
+  }
+
+  OrtValueCollectionEx(const OrtValueCollection& p) {
+    capacity_ = p.capacity_;
+    count_ = p.count_;
+    rgvalues_ = new OrtValue*[capacity_];
+    rgnames_ = new char*[capacity_];
+    rgname_owned_ = new bool[capacity_];
+    rgval_owned_ = new bool[capacity_];
+
+    // Currently only clones the size, but not the values.
+    for (int i = 0; i < capacity_; i++) {
+      rgvalues_[i] = nullptr;
+      rgnames_[i] = nullptr;
+      rgname_owned_[i] = false;
+      rgval_owned_[i] = false;
     }
   }
 
   ~OrtValueCollectionEx() {
-    // Do not delete the OrtValue pointers, for the memory is not owned by the array.
-    if (rgvalues_ != nullptr)
-      delete rgvalues_;
+    const OrtApi* g_ort = OrtGetApiBase()->GetApi(ORT_API_VERSION);
 
-    for (int i = 0; i < capacity_; i++) {
-      if (rgname_owned_[i])
-        free(rgnames_[i]);
+    if (owning_any_) {
+      for (int i = 0; i < capacity_; i++) {
+        if (rgname_owned_[i])
+          free(rgnames_[i]);
+
+        if (rgval_owned_[i])
+          g_ort->ReleaseValue(rgvalues_[i]);
+      }
     }
 
-    if (rgnames_ != nullptr)
-      delete rgnames_;
-
-    if (rgname_owned_ != nullptr)
-      delete rgname_owned_;
+    delete rgvalues_;
+    delete rgnames_;
+    delete rgname_owned_;
+    delete rgval_owned_;
   }
 
-  bool Add(OrtValue* val, char* szName, bool bNameOwned = false) {
+  bool Add(OrtValue* val, char* szName, bool bNameOwned = false, bool bValOwned = false) {
     if (count_ == capacity_)
       return false;
+
+    if (bNameOwned || bValOwned)
+      owning_any_ = true;
 
     rgvalues_[count_] = val;
     rgnames_[count_] = szName;
     rgname_owned_[count_] = bNameOwned;
+    rgval_owned_[count_] = bValOwned;
     count_++;
     return true;
   }
 
-  bool SetAt(size_t nIdx, OrtValue* val, char* szName, bool bNameOwned) {
+  bool SetAt(size_t nIdx, OrtValue* val, char* szName, bool bNameOwned, bool bValOwned) {
     if (nIdx >= capacity_)
       return false;
 
-    rgvalues_[nIdx] = val;
+    if (bNameOwned || bValOwned)
+      owning_any_ = true;
 
     if (rgnames_[nIdx] != nullptr && rgname_owned_[nIdx])
       free(rgnames_[nIdx]);
 
+    if (rgvalues_[nIdx] != nullptr && rgval_owned_[nIdx]) {
+      const OrtApi* g_ort = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+      g_ort->ReleaseValue(rgvalues_[nIdx]);
+    }
+
+    rgvalues_[nIdx] = val;
     rgnames_[nIdx] = szName;
     rgname_owned_[nIdx] = bNameOwned;
+    rgval_owned_[nIdx] = bValOwned;
     return true;
   }
 
@@ -221,8 +259,20 @@ class OrtValueCollectionEx : public OrtValueCollection {
 struct InternalParameters {
  public:
   std::vector<std::string> rgstr_datafeed_names_;
-  OrtShape expected_input_shape_;
-  OrtShape expected_output_shape_;
+  std::vector<int64_t*> rginput_shapes_;
+  std::vector<int64_t*> rgoutput_shapes_;
+
+  ~InternalParameters() {
+    for (int i = 0; i < rginput_shapes_.size(); i++) {
+      if (rginput_shapes_[i] != nullptr)
+        delete rginput_shapes_[i];
+    }
+
+    for (int i = 0; i < rgoutput_shapes_.size(); i++) {
+      if (rgoutput_shapes_[i] != nullptr)
+        delete rgoutput_shapes_[i];
+    }
+  }
 };
 
 struct InternalParameters;
@@ -272,7 +322,7 @@ class OrtTrainingParametersEx : public OrtTrainingParameters {
     pinternal_param_ = new InternalParameters();
   }
 
-  OrtTrainingParametersEx(OrtTrainingParameters p) {
+  OrtTrainingParametersEx(const OrtTrainingParameters& p) {
     use_cuda_ = p.use_cuda_;
     use_tensorboard_ = p.use_tensorboard_;
     fntraining_data_getbatch_ = p.fntraining_data_getbatch_;
@@ -381,7 +431,7 @@ class DataSetEx : public DataSet {
       pData->rgvalues_[i] = nullptr;
     }
 
-    fnGetData(m_pParam->prunner_param_->batch_size, pData, &m_pParam->pinternal_param_->expected_input_shape_, &m_pParam->pinternal_param_->expected_output_shape_);
+    fnGetData(m_pParam->prunner_param_->batch_size, pData);
 
     std::vector<OrtValue> result;
     for (int i = 0; i < pData->capacity_; i++) {
@@ -398,7 +448,7 @@ class DataSetEx : public DataSet {
 };
 
 //=================================================================================================
-//  C API Implementations - OrtTrainingApis
+//  C API Implementations - OrtTrainingApis for OrtTrainingParameters
 //=================================================================================================
 
 ORT_API_STATUS_IMPL(OrtTrainingApis::CreateTrainingParameters, OrtTrainingParameters** out) {
@@ -772,9 +822,9 @@ static void error_function_callback(const std::vector<std::string>& feed_names,
   OrtErrorFunctionCallback errorFn = std::get<0>(m_fnFunctionMap[user_key]);
 
   OrtValueCollectionEx col(3);
-  col.Add((OrtValue*)label_o, (char*)label.c_str(), false);
-  col.Add((OrtValue*)predict_o, (char*)predict.c_str(), false);
-  col.Add((OrtValue*)loss_o, (char*)loss.c_str(), false);
+  col.Add((OrtValue*)label_o, (char*)label.c_str(), false, false);
+  col.Add((OrtValue*)predict_o, (char*)predict.c_str(), false, false);
+  col.Add((OrtValue*)loss_o, (char*)loss.c_str(), false, false);
   col.BeforeUsingAsInput(queue_id);
 
   errorFn((OrtValueCollection*)&col);
@@ -852,10 +902,6 @@ ORT_API_STATUS_IMPL(OrtTrainingApis::SetupTrainingData, _In_ OrtTrainingParamete
   pParam->ptraining_data_ = (OrtValueCollection*)new OrtValueCollectionEx(nInputCount);
   pParam->ptesting_data_ = (OrtValueCollection*)new OrtValueCollectionEx(nInputCount);
 
-  // TODO: load these from the actual model once loaded.
-  pParam->pinternal_param_->expected_input_shape_.dim_.push_back(784);
-  pParam->pinternal_param_->expected_output_shape_.dim_.push_back(10);
-
   auto device_count = MPIContext::GetInstance().GetWorldSize();
   auto trainingData = std::make_shared<DataSetEx>(pParam, OrtDataUse::ORT_DATAUSE_TRAINING);
   auto testingData = std::make_shared<DataSetEx>(pParam, OrtDataUse::ORT_DATAUSE_TESTING);
@@ -867,7 +913,7 @@ ORT_API_STATUS_IMPL(OrtTrainingApis::SetupTrainingData, _In_ OrtTrainingParamete
   API_IMPL_END
 }
 
-ORT_API_STATUS_IMPL(OrtTrainingApis::InitializeTraining, _In_ OrtEnv* pEnv, _In_ OrtTrainingParameters* pParam) {
+ORT_API_STATUS_IMPL(OrtTrainingApis::InitializeTraining, _In_ OrtEnv* pEnv, _In_ OrtTrainingParameters* pParam, _In_ OrtValueCollection* pExpectedInputs, _In_ OrtValueCollection* pExpectedOutputs) {
   API_IMPL_BEGIN
   Status status;
 
@@ -876,6 +922,93 @@ ORT_API_STATUS_IMPL(OrtTrainingApis::InitializeTraining, _In_ OrtEnv* pEnv, _In_
 
   pParam->ptraining_runner_ = new TrainingRunner(*pParam->prunner_param_, pEnv->GetEnvironment());    
   status = pParam->ptraining_runner_->Initialize();
+  if (!status.IsOK())
+    return ToOrtStatus(status);
+
+  const OrtApi* g_ort = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+
+  // Collect the expected inputs and their shapes.
+  TrainingSession& session = pParam->ptraining_runner_->GetSession();
+  std::pair<common::Status, const InputDefList*> inputs = session.GetModelInputs();
+  status = std::get<0>(inputs);
+  if (!status.IsOK())
+    return ToOrtStatus(status);
+
+  OrtMemoryInfo* memory_info;
+  OrtStatus* pstatus = g_ort->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &memory_info);
+  if (pstatus != nullptr)
+    return pstatus;
+
+  const int64_t input_shape[] = {4};
+  const size_t input_shape_len = 1;
+  const size_t data_size = sizeof(int64_t) * 4;
+
+  const InputDefList& inputDefs = *std::get<1>(inputs);
+  for (int i = 0; i < inputDefs.size(); i++) {
+    const onnxruntime::NodeArg* nodeArg = inputDefs[i];
+    const std::string strName = nodeArg->Name();
+    const onnx::TensorShapeProto* shape = nodeArg->Shape();
+
+    pParam->pinternal_param_->rginput_shapes_.push_back(new int64_t[4]);
+    int64_t* data_val = pParam->pinternal_param_->rginput_shapes_[i];
+    data_val[0] = pParam->prunner_param_->batch_size;
+
+    for (int j = 1; j < 4; j++) {
+      if (j < shape->dim_size())
+        data_val[j] = shape->dim()[j].dim_value();
+      else
+        data_val[j] = 1;
+    }
+
+    OrtValue* input_tensor;
+    pstatus = g_ort->CreateTensorWithDataAsOrtValue(memory_info, data_val, data_size, input_shape, input_shape_len, ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64, &input_tensor);
+    if (pstatus != nullptr) {
+      g_ort->ReleaseMemoryInfo(memory_info);
+      return pstatus;
+    }
+    assert(input_tensor != NULL);
+
+    ((OrtValueCollectionEx*)pExpectedInputs)->Add(input_tensor, _strdup(strName.c_str()), true, true);
+  }
+
+  // Collect the expected outputs and their shapes.
+  std::pair<common::Status, const InputDefList*> outputs = session.GetModelOutputs();
+  status = std::get<0>(outputs);
+  if (!status.IsOK()) {
+    g_ort->ReleaseMemoryInfo(memory_info);
+    return ToOrtStatus(status);
+  }
+
+  const InputDefList& outputDefs = *std::get<1>(outputs);
+  for (int i = 0; i < outputDefs.size(); i++) {
+    const onnxruntime::NodeArg* nodeArg = outputDefs[i];
+    const std::string strName = nodeArg->Name();
+    const onnx::TensorShapeProto* shape = nodeArg->Shape();
+
+    pParam->pinternal_param_->rgoutput_shapes_.push_back(new int64_t[4]);
+    int64_t* data_val = pParam->pinternal_param_->rgoutput_shapes_[i];
+    data_val[0] = pParam->prunner_param_->batch_size;
+
+    for (int j = 1; j < 4; j++) {
+      if (j < shape->dim_size())
+        data_val[j] = shape->dim()[j].dim_value();
+      else
+        data_val[j] = 1;
+    }
+
+    OrtValue* input_tensor;
+    pstatus = g_ort->CreateTensorWithDataAsOrtValue(memory_info, data_val, data_size, input_shape, input_shape_len, ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64, &input_tensor);
+    if (pstatus != nullptr) {
+      g_ort->ReleaseMemoryInfo(memory_info);
+      return pstatus;
+    }
+    assert(input_tensor != NULL);
+
+    ((OrtValueCollectionEx*)pExpectedOutputs)->Add(input_tensor, _strdup(strName.c_str()), true, true);
+  }
+
+  g_ort->ReleaseMemoryInfo(memory_info);
+  memory_info = nullptr;
 
   return ToOrtStatus(status);
   API_IMPL_END
@@ -898,6 +1031,29 @@ ORT_API_STATUS_IMPL(OrtTrainingApis::EndTraining, _In_ OrtTrainingParameters* pP
   status = pParam->ptraining_runner_->EndTraining(pParam->ptesting_data_loader_);
 
   return ToOrtStatus(status);
+  API_IMPL_END
+}
+
+
+//=================================================================================================
+//  C API Implementations - OrtTrainingApis for OrtValueCollection
+//=================================================================================================
+
+ORT_API_STATUS_IMPL(OrtTrainingApis::CreateValueCollection, OrtValueCollection** out) {
+  API_IMPL_BEGIN
+  *out = new OrtValueCollectionEx(VALUE_COLLECTION_MAX_CAPACITY);
+  return nullptr;
+  API_IMPL_END
+}
+
+ORT_API(void, OrtTrainingApis::ReleaseValueCollection, _Frees_ptr_opt_ OrtValueCollection* ptr) {
+  delete ((OrtValueCollectionEx*)ptr);
+}
+
+ORT_API_STATUS_IMPL(OrtTrainingApis::CloneValueCollection, const OrtValueCollection* input, OrtValueCollection** out) {
+  API_IMPL_BEGIN
+  *out = new OrtValueCollectionEx(*input);
+  return nullptr;
   API_IMPL_END
 }
 
@@ -953,34 +1109,11 @@ ORT_API_STATUS_IMPL(OrtTrainingApis::SetAt, _In_ OrtValueCollection* pCol, _In_ 
       bNameOwned = true;
     }
 
-    ((OrtValueCollectionEx*)pCol)->SetAt(nIdx, input, pszName, bNameOwned);
+    ((OrtValueCollectionEx*)pCol)->SetAt(nIdx, input, pszName, bNameOwned, false);
   } 
   else {
     status = Status(onnxruntime::common::ONNXRUNTIME, onnxruntime::common::INVALID_ARGUMENT, "");
   }
-
-  return ToOrtStatus(status);
-  API_IMPL_END
-}
-
-ORT_API_STATUS_IMPL(OrtTrainingApis::GetDimCount, _In_ OrtShape* pShape, _Out_ size_t* pnCount) {
-  API_IMPL_BEGIN
-  Status status;
-
-  *pnCount = pShape->dim_.size();
-
-  return ToOrtStatus(status);
-  API_IMPL_END
-}
-
-ORT_API_STATUS_IMPL(OrtTrainingApis::GetDimAt, _In_ OrtShape* pShape, _In_ size_t nIdx, _Out_ size_t* output) {
-  API_IMPL_BEGIN
-  Status status;
-
-  if (nIdx < pShape->dim_.size())
-    *output = pShape->dim_[nIdx];
-  else
-    status = Status(onnxruntime::common::ONNXRUNTIME, onnxruntime::common::INVALID_ARGUMENT, "");
 
   return ToOrtStatus(status);
   API_IMPL_END
@@ -1003,6 +1136,7 @@ See \onnxruntime\core\session\onnxruntime_c_api.cc notes for OrtApi table.
 */
 static constexpr OrtTrainingApi ort_training_api_1_to_6 = {
     // NOTE: The ordering of these fields MUST not change after that version has shipped since existing binaries depend on this ordering.
+
     &OrtTrainingApis::CreateTrainingParameters,
     &OrtTrainingApis::CloneTrainingParameters,
 
@@ -1031,15 +1165,16 @@ static constexpr OrtTrainingApi ort_training_api_1_to_6 = {
     &OrtTrainingApis::RunTraining,
     &OrtTrainingApis::EndTraining,
 
+    &OrtTrainingApis::CreateValueCollection,
+    &OrtTrainingApis::CloneValueCollection,
+
     &OrtTrainingApis::GetCount,
     &OrtTrainingApis::GetCapacity,
     &OrtTrainingApis::GetAt,
     &OrtTrainingApis::SetAt,
 
-    &OrtTrainingApis::GetDimCount,
-    &OrtTrainingApis::GetDimAt,
-
     &OrtTrainingApis::ReleaseTrainingParameters,
+    &OrtTrainingApis::ReleaseValueCollection,
 };
 
 

@@ -52,11 +52,10 @@ typedef enum OrtDataUse {
 
 struct OrtTrainingParameters;
 struct OrtValueCollection;
-struct OrtShape;
 
 typedef void(__stdcall* OrtErrorFunctionCallback)(_In_ OrtValueCollection* output);  // Array of outputs (e.g. label, predictions, loss).
 typedef void(__stdcall* OrtEvaluationFunctionCallback)(size_t num_samples, size_t step);
-typedef void(__stdcall* OrtDataGetBatchCallback)(_In_ const size_t ulBatchSize, _In_ OrtValueCollection* data, _In_ OrtShape* input_shape, _In_ OrtShape* output_shape); 
+typedef void(__stdcall* OrtDataGetBatchCallback)(_In_ const size_t ulBatchSize, _In_ OrtValueCollection* data); 
 
 
 struct OrtTrainingApi;
@@ -82,7 +81,7 @@ struct OrtTrainingApi {
   // create a copy of an existing OrtTrainingParameters
   ORT_API2_STATUS(CloneTrainingParameters, _In_ const OrtTrainingParameters* in_options,
                   _Outptr_ OrtTrainingParameters** out_options);
-
+ 
   /**
      * \param pParam points to the training parameters to configure.
      * \param key specifies the string parameter to set.
@@ -169,8 +168,10 @@ struct OrtTrainingApi {
   /**
      * \param pEnv points to the environment.
      * \param pParam points to the training parameters to setup (configures all SetTrainingParameters have been set).
+     * \param pExpectedInputs points to the blob collection loaded with the expected inputs.
+     * \param pExpectedOutputs points to the blob collection loaded with the expected outputs.
      */
-  ORT_API2_STATUS(InitializeTraining, _In_ OrtEnv* pEnv, _In_ OrtTrainingParameters* pParam);
+  ORT_API2_STATUS(InitializeTraining, _In_ OrtEnv* pEnv, _In_ OrtTrainingParameters* pParam, _In_ OrtValueCollection* pExpectedInputs, _In_ OrtValueCollection* pExpectedOutptus);
   /**
      * \param pParam points to the training parameters to setup (configures all SetTrainingParameters have been set).
      */
@@ -180,6 +181,14 @@ struct OrtTrainingApi {
      */
   ORT_API2_STATUS(EndTraining, _In_ OrtTrainingParameters* pParam);
 
+    /**
+    * \return A pointer of the newly created object. The pointer should be freed by OrtReleaseValueCollection after use
+    */
+  ORT_API2_STATUS(CreateValueCollection, _Outptr_ OrtValueCollection** col);
+
+  // create a copy of an existing OrtValueCollection
+  ORT_API2_STATUS(CloneValueCollection, _In_ const OrtValueCollection* in_col,
+                  _Outptr_ OrtValueCollection** out_col);
 
   /**
      * \param pCol points to the OrtValue collection.
@@ -207,21 +216,8 @@ struct OrtTrainingApi {
      */
   ORT_API2_STATUS(SetAt, _In_ OrtValueCollection* pCol, _In_ size_t nIdx, _Outptr_ OrtValue* input, _In_ const ORTCHAR_T* szName);
 
-
-  /**
-     * \param pCol points to the OrtShape.
-     * \param pnCount the number of items in the collection are returned in pnCount.
-     */
-  ORT_API2_STATUS(GetDimCount, _In_ OrtShape* pShape, _Out_ size_t* pnCount);
-  /**
-     * \param pCol points to the OrtShape.
-     * \param nIdx specifies the index of the OrtValue to retrieve.
-     * \param output specifies the OrtValue is returned in output.
-     */
-  ORT_API2_STATUS(GetDimAt, _In_ OrtShape* pShape, _In_ size_t nIdx, _Out_ size_t* output);
-
-
   ORT_CLASS_RELEASE(TrainingParameters);
+  ORT_CLASS_RELEASE(ValueCollection);
 };
 
 #ifdef __cplusplus

@@ -7,8 +7,6 @@ namespace OrtTrainingApis {
 ORT_API(const OrtTrainingApi*, GetApi, uint32_t version);
 ORT_API(const char*, GetVersionString);
 
-ORT_API(void, ReleaseTrainingParameters, _Frees_ptr_opt_ OrtTrainingParameters*);
-
 ORT_API_STATUS_IMPL(CreateTrainingParameters, _Outptr_ OrtTrainingParameters** out);
 ORT_API_STATUS_IMPL(CloneTrainingParameters, _In_ const OrtTrainingParameters* input, _Outptr_ OrtTrainingParameters** out);
 
@@ -33,15 +31,18 @@ ORT_API_STATUS_IMPL(GetTrainingLossFunction, _In_ OrtTrainingParameters* pParam,
 ORT_API_STATUS_IMPL(SetupTrainingParameters, _In_ OrtTrainingParameters* pParam, OrtErrorFunctionCallback errorFn, OrtEvaluationFunctionCallback evalFn, _In_ const ORTCHAR_T* szUserKey);
 ORT_API_STATUS_IMPL(SetupTrainingData, _In_ OrtTrainingParameters* pParam, OrtDataGetBatchCallback trainingdataqueryFn, OrtDataGetBatchCallback testingdataqueryFn, _In_ const ORTCHAR_T* szFeedNames);
 
-ORT_API_STATUS_IMPL(InitializeTraining, _In_ OrtEnv* pEnv, _In_ OrtTrainingParameters* pParam);
+ORT_API_STATUS_IMPL(InitializeTraining, _In_ OrtEnv* pEnv, _In_ OrtTrainingParameters* pParam, _In_ OrtValueCollection* pExpectedInputs, _In_ OrtValueCollection* pExpectedOutputs);
 ORT_API_STATUS_IMPL(RunTraining, _In_ OrtTrainingParameters* pParam);
 ORT_API_STATUS_IMPL(EndTraining, _In_ OrtTrainingParameters* pParam);
+
+ORT_API_STATUS_IMPL(CreateValueCollection, _Outptr_ OrtValueCollection** out);
+ORT_API_STATUS_IMPL(CloneValueCollection, _In_ const OrtValueCollection* input, _Outptr_ OrtValueCollection** out);
 
 ORT_API_STATUS_IMPL(GetCount, _In_ OrtValueCollection* pCol, _Out_ size_t* pnCount);
 ORT_API_STATUS_IMPL(GetCapacity, _In_ OrtValueCollection* pCol, _Out_ size_t* pnCount);
 ORT_API_STATUS_IMPL(GetAt, _In_ OrtValueCollection* pCol, _In_ size_t nIdx, _Outptr_ OrtValue** output, _Inout_ OrtAllocator* allocator, _Outptr_ char** ppName);
 ORT_API_STATUS_IMPL(SetAt, _In_ OrtValueCollection* pCol, _In_ size_t nIdx, _In_ OrtValue* output, _In_ const ORTCHAR_T* name);
 
-ORT_API_STATUS_IMPL(GetDimCount, _In_ OrtShape* pShape, _Out_ size_t* pnCount);
-ORT_API_STATUS_IMPL(GetDimAt, _In_ OrtShape* pShape, _In_ size_t nIdx, _Out_ size_t* output);
+ORT_API(void, ReleaseTrainingParameters, _Frees_ptr_opt_ OrtTrainingParameters*);
+ORT_API(void, ReleaseValueCollection, _Frees_ptr_opt_ OrtValueCollection*);
 }  // namespace OrtTrainingApis
