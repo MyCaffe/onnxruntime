@@ -1,4 +1,5 @@
 ﻿// Copyright (c) 2018-2020 SignalPop LLC, and contributors. All rights reserved.
+// Portions Copyright (c) Microsoft Corporation.
 // License: Apache 2.0
 // License: https://github.com/MyCaffe/MyCaffe/blob/master/LICENSE
 // Modified from Original Source: https://github.com/MyCaffe/MyCaffe/blob/master/MyCaffe.data/MnistDataLoader.cs
