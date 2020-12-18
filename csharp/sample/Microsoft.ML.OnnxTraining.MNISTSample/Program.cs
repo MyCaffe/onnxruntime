@@ -159,15 +159,20 @@ namespace Microsoft.ML.OnnxTraining.MNISTSample
 
         private static void loadBatch(DataBatchArgs e, List<Tuple<byte[], int>> rgData, ref int nIdx)
         {
+            string strData;
+            List<int> rgDataDim = e.GetInputAt(0, out strData);
+            string strLabel;
+            List<int> rgLabelDim = e.GetInputAt(1, out strLabel);
+
             float[] rgRawData = new float[rgData[0].Item1.Length * e.BatchSize];
-            float[] rgRawLabels = new float[e.BatchSize * 10];
+            float[] rgRawLabels = new float[e.BatchSize * rgLabelDim[0]];
             List<int> rgDimData = new List<int>() { e.BatchSize };
             List<int> rgDimLabels = new List<int>() { e.BatchSize };
             int nDataOffset = 0;
             int nLabelOffset = 0;
 
-            rgDimData.AddRange(e.InputShape);
-            rgDimLabels.AddRange(e.OutputShape);
+            rgDimData.AddRange(rgDataDim);
+            rgDimLabels.AddRange(rgLabelDim);
 
             for (int i = 0; i < e.BatchSize; i++)
             {
@@ -197,8 +202,8 @@ namespace Microsoft.ML.OnnxTraining.MNISTSample
             DenseTensor<float> tensorData = new DenseTensor<float>(rgRawData, rgDimData.ToArray());
             DenseTensor<float> tensorLabels = new DenseTensor<float>(rgRawLabels, rgDimLabels.ToArray());
 
-            e.Values.Add(NamedOnnxValue.CreateFromTensor<float>("X", tensorData));
-            e.Values.Add(NamedOnnxValue.CreateFromTensor<float>("labels", tensorLabels));
+            e.Values.Add(NamedOnnxValue.CreateFromTensor<float>(strData, tensorData));
+            e.Values.Add(NamedOnnxValue.CreateFromTensor<float>(strLabel, tensorLabels));
         }
 
         private static void OnErrorFunction(object sender, ErrorFunctionArgs e)
