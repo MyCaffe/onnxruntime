@@ -48,13 +48,14 @@ namespace Microsoft.ML.OnnxRuntime
     /// </summary>
     public sealed class OrtEnv : SafeHandle
     {
+        private static LogLevel _logLevel = LogLevel.Warning;
         private static readonly Lazy<OrtEnv> _instance = new Lazy<OrtEnv>(()=> new OrtEnv());
 
         #region private methods
         private OrtEnv()  //Problem: it is not possible to pass any option for a Singleton
-    : base(IntPtr.Zero, true)
+            : base(IntPtr.Zero, true)
         {
-            NativeApiStatus.VerifySuccess(NativeMethods.OrtCreateEnv(LogLevel.Warning, @"CSharpOnnxRuntime", out handle));
+            NativeApiStatus.VerifySuccess(NativeMethods.OrtCreateEnv(_logLevel, @"CSharpOnnxRuntime", out handle));
             try
             {
                 NativeApiStatus.VerifySuccess(NativeMethods.OrtSetLanguageProjection(handle, OrtLanguageProjection.ORT_PROJECTION_CSHARP));
@@ -90,6 +91,18 @@ namespace Microsoft.ML.OnnxRuntime
         /// </summary>
         /// <returns>Returns a singleton instance of OrtEnv that represents native OrtEnv object</returns>
         public static OrtEnv Instance() { return _instance.Value; }
+
+        /// <summary>
+        /// Set the log-level to use.
+        /// </summary>
+        /// <param name="logLevel">Specifies the log level to use.</param>
+        /// <remarks>
+        /// Note, this must be called before OrtEnv.Instance().
+        /// </remarks>
+        public static void SetLogLevel(LogLevel logLevel)
+        {
+            _logLevel = logLevel;
+        }
 
         /// <summary>
         /// Enable platform telemetry collection where applicable
