@@ -101,28 +101,48 @@ namespace Microsoft.ML.OnnxTraining
 
         #region Public Properties
 
+        /// <summary>
+        /// Return the native handle used with NativeMethodsTraining.
+        /// </summary>
+        /// <returns>The native handle is returned.</returns>
         public IntPtr DangerousGetHandle()
         {
             return _nativeHandle;
         }
 
+        /// <summary>
+        /// Get/set the expected inputs of the model.
+        /// </summary>
         public List<KeyValuePair<string, List<int>>> ExpectedInputs
         {
             get { return m_rgExpectedInputs; }
             set { m_rgExpectedInputs = value; }
         }
 
+        /// <summary>
+        /// Get/set the expected outputs of the model.
+        /// </summary>
         public List<KeyValuePair<string, List<int>>> ExpectedOutputs
         {
             get { return m_rgExpectedOutputs; }
             set { m_rgExpectedOutputs = value; }
         }
 
+        /// <summary>
+        /// Set the string based training parameters.
+        /// </summary>
+        /// <param name="key">Specifies the key of the value to set.</param>
+        /// <param name="strVal">Specifies the value to be set.</param>
         public void SetTrainingParameter(OrtTrainingStringParameter key, string strVal)
         {
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetParameter_string(_nativeHandle, key, NativeMethods.GetPlatformSerializedString(strVal)));
         }
 
+        /// <summary>
+        /// Return the string based training parameter.
+        /// </summary>
+        /// <param name="key">Specifies the key of the value to get.</param>
+        /// <returns>The string based value is returned.</returns>
         public string GetTrainingParameter(OrtTrainingStringParameter key)
         {
             string str = null;
@@ -137,11 +157,21 @@ namespace Microsoft.ML.OnnxTraining
             return str;
         }
 
+        /// <summary>
+        /// Set the boolean based training parameters.
+        /// </summary>
+        /// <param name="key">Specifies the key of the value to set.</param>
+        /// <param name="bVal">Specifies the value to be set.</param>
         public void SetTrainingParameter(OrtTrainingBooleanParameter key, bool bVal)
         {
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetParameter_bool(_nativeHandle, key, bVal));
         }
 
+        /// <summary>
+        /// Return the boolean based training parameter.
+        /// </summary>
+        /// <param name="key">Specifies the key of the value to get.</param>
+        /// <returns>The boolean based value is returned.</returns>
         public bool GetTrainingParameter(OrtTrainingBooleanParameter key)
         {
             UIntPtr val = UIntPtr.Zero;
@@ -153,11 +183,21 @@ namespace Microsoft.ML.OnnxTraining
                 return true;
         }
 
+        /// <summary>
+        /// Set the long based training parameters.
+        /// </summary>
+        /// <param name="key">Specifies the key of the value to set.</param>
+        /// <param name="lVal">Specifies the value to be set.</param>
         public void SetTrainingParameter(OrtTrainingLongParameter key, long lVal)
         {
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetParameter_long(_nativeHandle, key, lVal));
         }
 
+        /// <summary>
+        /// Return the long based training parameter.
+        /// </summary>
+        /// <param name="key">Specifies the key of the value to get.</param>
+        /// <returns>The long based value is returned.</returns>
         public long GetTrainingParameter(OrtTrainingLongParameter key)
         {
             UIntPtr val = UIntPtr.Zero;
@@ -166,11 +206,21 @@ namespace Microsoft.ML.OnnxTraining
             return (long)val;
         }
 
+        /// <summary>
+        /// Set the numeric (double) based training parameters.
+        /// </summary>
+        /// <param name="key">Specifies the key of the value to set.</param>
+        /// <param name="dfVal">Specifies the value to be set.</param>
         public void SetTrainingParameter(OrtTrainingNumericParameter key, double dfVal)
         {
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetNumericParameter(_nativeHandle, key, dfVal));
         }
 
+        /// <summary>
+        /// Return the numeric (double) based training parameter.
+        /// </summary>
+        /// <param name="key">Specifies the key of the value to get.</param>
+        /// <returns>The double based value is returned.</returns>
         public double GetTrainingParameter(OrtTrainingNumericParameter key)
         {
             string str = null;
@@ -185,11 +235,19 @@ namespace Microsoft.ML.OnnxTraining
             return double.Parse(str);
         }
 
+        /// <summary>
+        /// Set the training optimizer to use.
+        /// </summary>
+        /// <param name="opt">Specifies the optimizer to use.</param>
         public void SetTrainingOptimizer(OrtTrainingOptimizer opt)
         {
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetTrainingOptimizer(_nativeHandle, opt));
         }
 
+        /// <summary>
+        /// Returns the optimizer used.
+        /// </summary>
+        /// <returns>The optimizer used is returned.</returns>
         public OrtTrainingOptimizer GetTrainingOptimizer()
         {
             UIntPtr val = UIntPtr.Zero;
@@ -205,11 +263,19 @@ namespace Microsoft.ML.OnnxTraining
             }
         }
 
+        /// <summary>
+        /// Set the type of loss function to use.
+        /// </summary>
+        /// <param name="loss">Specifies the loss function type.</param>
         public void SetTrainingLossFunction(OrtTrainingLossFunction loss)
         {
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetTrainingLossFunction(_nativeHandle, loss));
         }
 
+        /// <summary>
+        /// Returns the loss function used.
+        /// </summary>
+        /// <returns>The loss function used is returned.</returns>
         public OrtTrainingLossFunction GetTrainingLossFunction()
         {
             UIntPtr val = UIntPtr.Zero;
@@ -229,7 +295,7 @@ namespace Microsoft.ML.OnnxTraining
 
         #region Public Methods
 
-        public void errorFn(IntPtr colVal)
+        private void errorFn(IntPtr colVal)
         {
             if (OnErrorFunction == null)
                 return;
@@ -257,7 +323,7 @@ namespace Microsoft.ML.OnnxTraining
             m_rgCleanUpList.Clear();
         }
 
-        public void evaluationFn(long lNumSamples, long lStep)
+        private void evaluationFn(long lNumSamples, long lStep)
         {
             if (OnEvaluationFunction == null)
                 return;
@@ -265,6 +331,9 @@ namespace Microsoft.ML.OnnxTraining
             OnEvaluationFunction(this, new EvaluationFunctionArgs(lNumSamples, lStep));
         }
 
+        /// <summary>
+        /// Setup the training parameters and set the error and evaluation functions.
+        /// </summary>
         public void SetupTrainingParameters()
         {
             Guid guid = System.Guid.NewGuid();
@@ -272,7 +341,7 @@ namespace Microsoft.ML.OnnxTraining
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetupTrainingParameters(_nativeHandle, m_fnErrorFunction, m_fnEvaluateFunction, NativeMethods.GetPlatformSerializedString(strKey)));
         }
 
-        public void getTrainingDataFn(long nBatchSize, IntPtr hVal)
+        private void getTrainingDataFn(long nBatchSize, IntPtr hVal)
         {
             if (OnGetTestingDataBatch == null)
                 return;
@@ -282,7 +351,7 @@ namespace Microsoft.ML.OnnxTraining
             handleGetDataFn(args, hVal);
         }
 
-        public void getTestingDataFn(long nBatchSize, IntPtr hVal)
+        private void getTestingDataFn(long nBatchSize, IntPtr hVal)
         {
             if (OnGetTestingDataBatch == null)
                 return;
@@ -310,6 +379,10 @@ namespace Microsoft.ML.OnnxTraining
             }
         }
 
+        /// <summary>
+        /// Setup the training data and connect the data batch callbacks.
+        /// </summary>
+        /// <param name="rgstrFeedNames">Specifies a list of the data feed names</param>
         public void SetupTrainingData(List<string> rgstrFeedNames)
         {
             string strFeedNames = "";
@@ -326,20 +399,36 @@ namespace Microsoft.ML.OnnxTraining
         #endregion
     }
 
+    /// <summary>
+    /// The ErrorFunctionArgs are sent as the parameter to the OnErrorFunction event called
+    /// when the error callback function fires.
+    /// </summary>
     public class ErrorFunctionArgs : EventArgs
     {
         List<DisposableNamedOnnxValue> m_rgVal;
 
+        /// <summary>
+        /// The constructor.
+        /// </summary>
+        /// <param name="rgVal">Specifies the list of named OnnxValues sent to the error function.</param>
         public ErrorFunctionArgs(List<DisposableNamedOnnxValue> rgVal)
         {
             m_rgVal = rgVal;
         }
 
+        /// <summary>
+        /// Returns the list of named OnnxValues sent to the error function.
+        /// </summary>
         public List<DisposableNamedOnnxValue> Values
         {
             get { return m_rgVal; }
         }
 
+        /// <summary>
+        /// Locates a specific named OnnxValue within the set of values.
+        /// </summary>
+        /// <param name="strName">Specifies the name to look for.</param>
+        /// <returns>If found, the OnnxValue matching the name is returned, otherwise null is returned.</returns>
         public DisposableNamedOnnxValue Find(string strName)
         {
             foreach (DisposableNamedOnnxValue val in m_rgVal)
@@ -352,28 +441,46 @@ namespace Microsoft.ML.OnnxTraining
         }
     }
 
+    /// <summary>
+    /// The EvaulationFunctionArgs are sent as the parameter to the OnEvaluationFunction event called
+    /// when the evalution callback function fires.
+    /// </summary>
     public class EvaluationFunctionArgs : EventArgs 
     {
         long m_lNumSamples;
         long m_lStep;
 
+        /// <summary>
+        /// The constructor.
+        /// </summary>
+        /// <param name="lNumSamples">Specifies the number of samples.</param>
+        /// <param name="lStep">Specifies the current step.</param>
         public EvaluationFunctionArgs(long lNumSamples, long lStep)
         {
             m_lNumSamples = lNumSamples;
             m_lStep = lStep;
         }
 
+        /// <summary>
+        /// Returns the number of samples.
+        /// </summary>
         public long NumSamples
         {
             get { return m_lNumSamples; }
         }
 
+        /// <summary>
+        /// Returns the current step.
+        /// </summary>
         public long Step
         {
             get { return m_lStep; }
         }
     }
 
+    /// <summary>
+    /// The DataBatchArgs are sent as the parameter to the OnGetTestingDataBatch and OnGetTrainingDataBatch events.
+    /// </summary>
     public class DataBatchArgs : EventArgs
     {
         int m_nBatchSize;
@@ -381,6 +488,12 @@ namespace Microsoft.ML.OnnxTraining
         List<KeyValuePair<string, List<int>>> m_rgExpectedInputs;
         List<KeyValuePair<string, List<int>>> m_rgExpectedOutputs;
 
+        /// <summary>
+        /// The constructor.
+        /// </summary>
+        /// <param name="nBatchSize">Specifies the batch size.</param>
+        /// <param name="rgExpectedInputs">Specifies the inputs expected by the model.</param>
+        /// <param name="rgExpectedOutputs">Specifies the outputs produced by the model.</param>
         public DataBatchArgs(long nBatchSize, List<KeyValuePair<string, List<int>>> rgExpectedInputs, List<KeyValuePair<string, List<int>>> rgExpectedOutputs)
         {
             m_nBatchSize = (int)nBatchSize;
@@ -388,26 +501,44 @@ namespace Microsoft.ML.OnnxTraining
             m_rgExpectedOutputs = rgExpectedOutputs;
         }
 
+        /// <summary>
+        /// Returns the list of NamedOnnxValues filled by the handler of the OnGetTrainingDataBatch and OnGetTrainingDataBatch events.
+        /// </summary>
         public List<NamedOnnxValue> Values
         {
             get { return m_rgValues; }
         }
 
+        /// <summary>
+        /// Returns the batch size.
+        /// </summary>
         public int BatchSize
         {
             get { return m_nBatchSize; }
         }
 
+        /// <summary>
+        /// Returns the definition of the inputs expected by the model.
+        /// </summary>
         public List<KeyValuePair<string, List<int>>> Inputs
         {
             get { return m_rgExpectedInputs; }
         }
 
+        /// <summary>
+        /// Returns the definition of the outputs produced by the model.
+        /// </summary>
         public List<KeyValuePair<string, List<int>>> Outpus
         {
             get { return m_rgExpectedOutputs; }
         }
 
+        /// <summary>
+        /// Gets the input shapes (after the batch) and input name at a given index.
+        /// </summary>
+        /// <param name="nIdx">Specifies the index to get.</param>
+        /// <param name="strName">Specifies the name of the input at the index.</param>
+        /// <returns>The input shape at the given index is returned.</returns>
         public List<int> GetInputAt(int nIdx, out string strName)
         {
             List<int> rg = new List<int>();
@@ -427,6 +558,12 @@ namespace Microsoft.ML.OnnxTraining
             return rg;
         }
 
+        /// <summary>
+        /// Gets the output shapes (after the batch) and output name at a given index.
+        /// </summary>
+        /// <param name="nIdx">Specifies the index to get.</param>
+        /// <param name="strName">Specifies the name of the output at the index.</param>
+        /// <returns>The output shape at the given index is returned.</returns>
         public List<int> GetOutputAt(int nIdx, out string strName)
         {
             List<int> rg = new List<int>();
