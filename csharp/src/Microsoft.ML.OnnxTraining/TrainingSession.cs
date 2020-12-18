@@ -10,6 +10,9 @@ using System.Text;
 
 namespace Microsoft.ML.OnnxTraining
 {
+    /// <summary>
+    /// The TrainingSession manages the training process.
+    /// </summary>
     public class TrainingSession : IDisposable
     {
         TrainingParameters m_param = new TrainingParameters();
@@ -17,6 +20,9 @@ namespace Microsoft.ML.OnnxTraining
         private OrtValueCollection m_expectedOutputs = new OrtValueCollection(IntPtr.Zero);
         bool _disposed = false;
 
+        /// <summary>
+        /// The constructor that creates a TrainingSession object.
+        /// </summary>
         public TrainingSession()
         {
         }
@@ -64,12 +70,18 @@ namespace Microsoft.ML.OnnxTraining
 
         #endregion
 
-
+        /// <summary>
+        /// Returns the TrainingParameters used for the training session.
+        /// </summary>
         public TrainingParameters Parameters
         {
             get { return m_param; }
         }
 
+        /// <summary>
+        /// Initialize the training session using the OrtEnv.
+        /// </summary>
+        /// <param name="env">Specifies the OrtEnv to use.</param>
         public void Initialize(OrtEnv env)
         {
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtInitializeTraining(env.DangerousGetHandle(), m_param.DangerousGetHandle(), m_expectedInputs.DangerousGetHandle(), m_expectedOutputs.DangerousGetHandle()));
@@ -103,11 +115,17 @@ namespace Microsoft.ML.OnnxTraining
             return rgDefs;
         }
 
+        /// <summary>
+        /// Run the training session.
+        /// </summary>
         public void RunTraining()
         {           
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtRunTraining(m_param.DangerousGetHandle()));
         }
 
+        /// <summary>
+        /// End the training session.
+        /// </summary>
         public void EndTraining()
         {
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtEndTraining(m_param.DangerousGetHandle()));

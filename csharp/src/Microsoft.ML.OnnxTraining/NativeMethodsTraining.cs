@@ -59,6 +59,9 @@ namespace Microsoft.ML.OnnxTraining
 
     #endregion
 
+    /// <summary>
+    /// Defines the API entry points into the onnxruntime.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct OrtTrainingApiBase
     {

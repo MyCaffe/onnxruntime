@@ -103,16 +103,26 @@ namespace Microsoft.ML.OnnxTraining
 
         #region Public Methods
 
+        /// <summary>
+        /// Returns whether or not the collection is owned (on the C# side).
+        /// </summary>
         public bool IsOwned
         {
             get { return _ownsHandle; }
         }
 
+        /// <summary>
+        /// Returns the native handle used by the NativeMethodsTraining.
+        /// </summary>
+        /// <returns>The native handle is returned.</returns>
         public IntPtr DangerousGetHandle()
         {
             return _nativeHandle;
         }
 
+        /// <summary>
+        /// Returns the number of items in the collection.
+        /// </summary>
         public int Count
         {
             get
@@ -123,6 +133,9 @@ namespace Microsoft.ML.OnnxTraining
             }
         }
 
+        /// <summary>
+        /// Returns the maximum capacity of the collection.
+        /// </summary>
         public int Capacity
         {
             get
@@ -133,6 +146,12 @@ namespace Microsoft.ML.OnnxTraining
             }
         }
 
+        /// <summary>
+        /// Returns the OrtValue at a given index as well as its name.
+        /// </summary>
+        /// <param name="nIdx">Specifies the index to get.</param>
+        /// <param name="strName">Returns the name of the OrtValue.</param>
+        /// <returns>The OrtValue at the index is returned.</returns>
         public OrtValue GetAt(int nIdx, out string strName)
         {
             IntPtr valData;
@@ -148,6 +167,12 @@ namespace Microsoft.ML.OnnxTraining
             return new OrtValue(valData, false);
         }
 
+        /// <summary>
+        /// Set an OrtVale at a given index.
+        /// </summary>
+        /// <param name="nIdx">Specifies the index where the data is to be set.</param>
+        /// <param name="val">Specifies the value to set.</param>
+        /// <param name="strName">Specifies the name of the value.</param>
         public void SetAt(int nIdx, OrtValue val, string strName = "")
         {
             byte[] rgName = (string.IsNullOrEmpty(strName)) ? null : NativeMethods.GetPlatformSerializedString(strName);
