@@ -21,6 +21,7 @@ namespace training {
 class TrainingRunner {
  public:
   struct Parameters {
+    std::string user_key;
     std::string model_name;
     PathString model_path;
     PathString model_with_loss_func_path;        // To save the model after adding loss func.
@@ -76,13 +77,15 @@ class TrainingRunner {
                        const std::vector<OrtValue>& feeds,
                        const std::vector<std::string>& fetch_names,
                        const std::vector<OrtValue>& fetches,
-                       size_t step)>
+                       size_t step,
+                       const std::string& user_key)>
         error_function;
 
     // post_evaluation_callback_ is called when a batch of evaluation is done.
     std::function<void(size_t /*eval_batch_size*/,
                        size_t /*step*/,
-                       const std::string& /*tag*/)>
+                       const std::string& /*tag*/,
+                       const std::string& user_key)>
         post_evaluation_callback;
 
     // Allocator to use for allocating inputs from the dataset (optional).

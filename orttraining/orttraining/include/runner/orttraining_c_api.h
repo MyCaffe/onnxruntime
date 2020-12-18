@@ -157,7 +157,7 @@ struct OrtTrainingApi {
      * \param errorFn callback called when the error function is called.
      * \param evalFn callback called when the evaluation function is called.
      */
-  ORT_API2_STATUS(SetupTrainingParameters, _In_ OrtTrainingParameters* pParam, _In_ OrtErrorFunctionCallback errorFn, _In_ OrtEvaluationFunctionCallback evalFn);
+  ORT_API2_STATUS(SetupTrainingParameters, _In_ OrtTrainingParameters* pParam, _In_ OrtErrorFunctionCallback errorFn, _In_ OrtEvaluationFunctionCallback evalFn, _In_ const ORTCHAR_T* szUserKey);
   /**
      * \param pParam points to the training parameters to setup (configures all SetTrainingParameters have been set).
      * \param trainingdataqueryFn callback called to get each training data batch.

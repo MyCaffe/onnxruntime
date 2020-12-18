@@ -754,13 +754,13 @@ ORT_API_STATUS_IMPL(OrtTrainingApis::GetTrainingLossFunction, _In_ OrtTrainingPa
 // A more long term change is to add to the training_runner a uniqe key passed in 
 // to the RunWithUpdate training_runner function.
 std::map<std::string, std::tuple<OrtErrorFunctionCallback, OrtEvaluationFunctionCallback>> m_fnFunctionMap;
-std::string m_strLastMapUsed; 
 
 static void error_function_callback(const std::vector<std::string>& feed_names,
                            const std::vector<OrtValue>& feeds,
                            const std::vector<std::string>& fetch_names,
                            const std::vector<OrtValue>& fetches,
-                           size_t /*step*/) {
+                           size_t step,
+                           const std::string& user_key) {
   const OrtValue* label_o = &feeds[1];
   const std::string label = feed_names[1];
   const OrtValue* predict_o = &fetches[0];
@@ -769,9 +769,7 @@ static void error_function_callback(const std::vector<std::string>& feed_names,
   const std::string loss = fetch_names[1];
   const int queue_id = 0;
 
-  std::string strLabel = feed_names[1];
-  m_strLastMapUsed = strLabel;
-  OrtErrorFunctionCallback errorFn = std::get<0>(m_fnFunctionMap[strLabel]);
+  OrtErrorFunctionCallback errorFn = std::get<0>(m_fnFunctionMap[user_key]);
 
   OrtValueCollectionEx col(3);
   col.Add((OrtValue*)label_o, (char*)label.c_str(), false);
@@ -782,15 +780,16 @@ static void error_function_callback(const std::vector<std::string>& feed_names,
   errorFn((OrtValueCollection*)&col);
 }
 
-static void evaluation_function_callback(size_t num_samples, size_t step, const std::string str) {
-  OrtEvaluationFunctionCallback evalFn = std::get<1>(m_fnFunctionMap[m_strLastMapUsed]);
+static void evaluation_function_callback(size_t num_samples, size_t step, const std::string str, const std::string& user_key) {
+  OrtEvaluationFunctionCallback evalFn = std::get<1>(m_fnFunctionMap[user_key]);
 
   evalFn(num_samples, step);
 }
 
 ORT_API_STATUS_IMPL(OrtTrainingApis::SetupTrainingParameters, _In_ OrtTrainingParameters* pParam,
                                         OrtErrorFunctionCallback errorFn,
-                                        OrtEvaluationFunctionCallback evalFn) {
+                                        OrtEvaluationFunctionCallback evalFn,
+                                        _In_ const ORTCHAR_T* szUserKey) {
   API_IMPL_BEGIN
   Status status;
 
@@ -799,6 +798,7 @@ ORT_API_STATUS_IMPL(OrtTrainingApis::SetupTrainingParameters, _In_ OrtTrainingPa
   pParam->prunner_param_->model_with_training_graph_path = ToPathString(pParam->prunner_param_->model_name) + ORT_TSTR("_bw.onnx");
   pParam->prunner_param_->model_actual_running_graph_path = ToPathString(pParam->prunner_param_->model_name) + ORT_TSTR("_bw_running.onnx");
   pParam->prunner_param_->output_dir = ORT_TSTR(".");
+  pParam->prunner_param_->user_key = _bstr_t(szUserKey);
 
   // Gist encode
   pParam->prunner_param_->model_gist_encode_path = ToPathString(pParam->prunner_param_->model_name) + ORT_TSTR("_encode_gist.onnx");
@@ -816,7 +816,7 @@ ORT_API_STATUS_IMPL(OrtTrainingApis::SetupTrainingParameters, _In_ OrtTrainingPa
   pParam->prunner_param_->fetch_names = {pParam->pszoutput_predictions_, pParam->pszoutput_loss_};
   pParam->prunner_param_->error_function = error_function_callback;
   pParam->prunner_param_->post_evaluation_callback = evaluation_function_callback;
-  m_fnFunctionMap.insert(std::make_pair(pParam->pszinput_labels_, std::make_pair(errorFn, evalFn)));
+  m_fnFunctionMap.insert(std::make_pair(pParam->prunner_param_->user_key, std::make_pair(errorFn, evalFn)));
 
   // Setup CUDA
   if (pParam->use_cuda_) {

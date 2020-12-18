@@ -621,10 +621,10 @@ void TrainingRunner::RunWithUpdate(VectorString& feed_names,
       !params_.is_perf_test &&
       weight_update_step_count_ % params_.display_loss_steps == 0) {
     if (params_.error_function) {
-      params_.error_function(feed_names, feeds, fetch_names, fetches, weight_update_step_count_);
+      params_.error_function(feed_names, feeds, fetch_names, fetches, weight_update_step_count_, params_.user_key);
     }
     if (params_.post_evaluation_callback) {
-      params_.post_evaluation_callback(params_.batch_size, weight_update_step_count_, "train");
+      params_.post_evaluation_callback(params_.batch_size, weight_update_step_count_, "train", params_.user_key);
     }
   }
 
@@ -1198,7 +1198,7 @@ Status TrainingRunner::Evaluate(TrainingSession& session, IDataLoader& data_load
 
     // Call error function
     if (session_can_see_loss && params_.error_function) {
-      params_.error_function(feed_names, feeds, params_.fetch_names, fetches, step_);
+      params_.error_function(feed_names, feeds, params_.fetch_names, fetches, step_, params_.user_key);
     }
 
     // Set to next batch
@@ -1211,7 +1211,7 @@ Status TrainingRunner::Evaluate(TrainingSession& session, IDataLoader& data_load
 
   // Call after a test batch.
   if (params_.post_evaluation_callback) {
-    params_.post_evaluation_callback(evaluation_batch_size, step_, "test");
+    params_.post_evaluation_callback(evaluation_batch_size, step_, "test", params_.user_key);
   }
 
   return Status::OK();

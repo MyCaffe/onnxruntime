@@ -30,7 +30,7 @@ ORT_API_STATUS_IMPL(GetTrainingOptimizer, _In_ OrtTrainingParameters* pParam, _O
 ORT_API_STATUS_IMPL(SetTrainingLossFunction, _In_ OrtTrainingParameters* pParam, _In_ const OrtTrainingLossFunction loss);
 ORT_API_STATUS_IMPL(GetTrainingLossFunction, _In_ OrtTrainingParameters* pParam, _Out_ OrtTrainingLossFunction* ploss);
 
-ORT_API_STATUS_IMPL(SetupTrainingParameters, _In_ OrtTrainingParameters* pParam, OrtErrorFunctionCallback errorFn, OrtEvaluationFunctionCallback evalFn);
+ORT_API_STATUS_IMPL(SetupTrainingParameters, _In_ OrtTrainingParameters* pParam, OrtErrorFunctionCallback errorFn, OrtEvaluationFunctionCallback evalFn, _In_ const ORTCHAR_T* szUserKey);
 ORT_API_STATUS_IMPL(SetupTrainingData, _In_ OrtTrainingParameters* pParam, OrtDataGetBatchCallback trainingdataqueryFn, OrtDataGetBatchCallback testingdataqueryFn, _In_ const ORTCHAR_T* szFeedNames);
 
 ORT_API_STATUS_IMPL(InitializeTraining, _In_ OrtEnv* pEnv, _In_ OrtTrainingParameters* pParam);

@@ -255,7 +255,9 @@ namespace Microsoft.ML.OnnxTraining
 
         public void SetupTrainingParameters()
         {
-            NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetupTrainingParameters(_nativeHandle, m_fnErrorFunction, m_fnEvaluateFunction));
+            Guid guid = System.Guid.NewGuid();
+            string strKey = guid.ToString();
+            NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetupTrainingParameters(_nativeHandle, m_fnErrorFunction, m_fnEvaluateFunction, NativeMethods.GetPlatformSerializedString(strKey)));
         }
 
         public void getTrainingDataFn(long nBatchSize, IntPtr hVal, IntPtr hInputShape, IntPtr hOutputShape)

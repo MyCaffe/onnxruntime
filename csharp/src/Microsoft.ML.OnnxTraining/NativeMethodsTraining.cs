@@ -277,7 +277,9 @@ namespace Microsoft.ML.OnnxTraining
         public delegate IntPtr /* OrtStatus */DOrtSetupTrainingParameters(
                                                 IntPtr /* (OrtTrainingParameters*) */ trainParam,
                                                 [MarshalAs(UnmanagedType.FunctionPtr)] OrtErrorFunctionCallback errorFn,
-                                                [MarshalAs(UnmanagedType.FunctionPtr)] OrtEvaluationFunctionCallback evalFn);
+                                                [MarshalAs(UnmanagedType.FunctionPtr)] OrtEvaluationFunctionCallback evalFn,
+                                                //[MarshalAs(UnmanagedType.LPStr)]string strUserKey
+                                                byte[] strUserKey);
         public static DOrtSetupTrainingParameters OrtSetupTrainingParameters;
 
         #endregion
