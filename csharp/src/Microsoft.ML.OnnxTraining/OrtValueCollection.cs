@@ -14,18 +14,26 @@ namespace Microsoft.ML.OnnxTraining
     /// The OrtValueCollection holds ort values returned by the error function, but does not actually own any of them
     /// and therefore does not release them.
     /// </summary>
-    internal class OrtValueCollection
+    internal class OrtValueCollection : IDisposable
     {
         /// <summary>
         /// A pointer to a underlying native instance of OrtValueCollection
         /// </summary>
         protected IntPtr _nativeHandle;
+        /// <summary>
+        /// Specifies whether or not the native handle is owned.
+        /// </summary>
+        protected bool _ownsHandle;
+        private bool _disposed = false;
+
 
         /// <summary>
         /// The OrtValueCollection is an object is not a native collection, but instead
         /// gives access to a group of native OrtValues via its GetAt and SetAt methods.
         /// </summary>
-        /// <param name="h">Specifies the handle to the native OrtValueCollection.</param>
+        /// <param name="h">Specifies the handle to the native OrtValueCollection to use, or IntPtr.Zero.  
+        /// If IntPtr.Zero, the OrtValueCollection creates a value collection that it owns and disposes,
+        /// otherwise the OrtValueCollection does not own the collection and therefore does not dispose it.</param>
         /// <remarks>
         /// For efficiency, the OrtValue collection gives access to a set of OrtValues where
         /// each OrtValue does not actually own the memory but instead points to one or 
@@ -33,10 +41,77 @@ namespace Microsoft.ML.OnnxTraining
         /// </remarks>
         public OrtValueCollection(IntPtr h)
         {
-            _nativeHandle = h;
+            if (h == IntPtr.Zero)
+            {
+                NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtCreateValueCollection(out _nativeHandle));
+                _ownsHandle = true;
+            }
+            else
+            {
+                _nativeHandle = h;
+                _ownsHandle = false;
+            }
         }
 
+        /// <summary>
+        /// Finalizer. to cleanup training parameters in case it runs
+        /// and the user forgets to Dispose() of the training parameters.
+        /// </summary>
+        ~OrtValueCollection()
+        {
+            Dispose(false);
+        }
+
+        #region Disposable
+
+        /// <summary>
+        /// Release all resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            // Suppress finalization.
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// IDisposable implementation
+        /// </summary>
+        /// <param name="disposing">true if invoked from Dispose() method</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            // dispose managed state (managed objects).
+            if (disposing)
+            {
+            }
+
+            // cleanup unmanaged resources
+            if (_nativeHandle != IntPtr.Zero)
+            {
+                if (_ownsHandle)
+                    NativeMethodsTraining.OrtReleaseValueCollection(_nativeHandle);
+                _nativeHandle = IntPtr.Zero;
+            }
+            _disposed = true;
+        }
+
+        #endregion
+
+
         #region Public Methods
+
+        public bool IsOwned
+        {
+            get { return _ownsHandle; }
+        }
+
+        public IntPtr DangerousGetHandle()
+        {
+            return _nativeHandle;
+        }
 
         public int Count
         {
