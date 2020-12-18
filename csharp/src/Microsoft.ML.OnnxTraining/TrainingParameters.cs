@@ -30,8 +30,8 @@ namespace Microsoft.ML.OnnxTraining
         public event EventHandler<DataBatchArgs> OnGetTrainingDataBatch;
         public event EventHandler<DataBatchArgs> OnGetTestingDataBatch;
         private DisposableList<IDisposable> m_rgCleanUpList = new DisposableList<IDisposable>();
-        private List<int> m_rgInputShape = null;
-        private List<int> m_rgOutputShape = null;
+        private List<KeyValuePair<string, List<int>>> m_rgExpectedInputs;
+        private List<KeyValuePair<string, List<int>>> m_rgExpectedOutputs;
         private bool _disposed = false;
 
         /// <summary>
@@ -101,9 +101,21 @@ namespace Microsoft.ML.OnnxTraining
 
         #region Public Properties
 
-        public IntPtr Handle
+        public IntPtr DangerousGetHandle()
         {
-            get { return _nativeHandle; }
+            return _nativeHandle;
+        }
+
+        public List<KeyValuePair<string, List<int>>> ExpectedInputs
+        {
+            get { return m_rgExpectedInputs; }
+            set { m_rgExpectedInputs = value; }
+        }
+
+        public List<KeyValuePair<string, List<int>>> ExpectedOutputs
+        {
+            get { return m_rgExpectedOutputs; }
+            set { m_rgExpectedOutputs = value; }
         }
 
         public void SetTrainingParameter(OrtTrainingStringParameter key, string strVal)
@@ -260,44 +272,22 @@ namespace Microsoft.ML.OnnxTraining
             NativeApiStatus.VerifySuccess(NativeMethodsTraining.OrtSetupTrainingParameters(_nativeHandle, m_fnErrorFunction, m_fnEvaluateFunction, NativeMethods.GetPlatformSerializedString(strKey)));
         }
 
-        public void getTrainingDataFn(long nBatchSize, IntPtr hVal, IntPtr hInputShape, IntPtr hOutputShape)
+        public void getTrainingDataFn(long nBatchSize, IntPtr hVal)
         {
             if (OnGetTestingDataBatch == null)
                 return;
 
-            if (m_rgInputShape == null)
-            {
-                OrtShape shape = new OrtShape(hInputShape);
-                m_rgInputShape = shape.GetShape();
-            }
-
-            if (m_rgOutputShape == null)
-            {
-                OrtShape shape = new OrtShape(hOutputShape);
-                m_rgOutputShape = shape.GetShape();
-            }
-            DataBatchArgs args = new DataBatchArgs(nBatchSize, m_rgInputShape, m_rgOutputShape);
+            DataBatchArgs args = new DataBatchArgs(nBatchSize, m_rgExpectedInputs, m_rgExpectedOutputs);
             OnGetTrainingDataBatch(this, args);
             handleGetDataFn(args, hVal);
         }
 
-        public void getTestingDataFn(long nBatchSize, IntPtr hVal, IntPtr hInputShape, IntPtr hOutputShape)
+        public void getTestingDataFn(long nBatchSize, IntPtr hVal)
         {
             if (OnGetTestingDataBatch == null)
                 return;
 
-            if (m_rgInputShape == null)
-            {
-                OrtShape shape = new OrtShape(hInputShape);
-                m_rgInputShape = shape.GetShape();
-            }
-
-            if (m_rgOutputShape == null)
-            {
-                OrtShape shape = new OrtShape(hOutputShape);
-                m_rgOutputShape = shape.GetShape();
-            }
-            DataBatchArgs args = new DataBatchArgs(nBatchSize, m_rgInputShape, m_rgOutputShape);
+            DataBatchArgs args = new DataBatchArgs(nBatchSize, m_rgExpectedInputs, m_rgExpectedOutputs);
             OnGetTestingDataBatch(this, args);
             handleGetDataFn(args, hVal);
         }
@@ -388,14 +378,14 @@ namespace Microsoft.ML.OnnxTraining
     {
         int m_nBatchSize;
         List<NamedOnnxValue> m_rgValues = new List<NamedOnnxValue>();
-        List<int> m_rgInputShape;
-        List<int> m_rgOutputShape;
+        List<KeyValuePair<string, List<int>>> m_rgExpectedInputs;
+        List<KeyValuePair<string, List<int>>> m_rgExpectedOutputs;
 
-        public DataBatchArgs(long nBatchSize, List<int> rgInputShape, List<int> rgOutputShape)
+        public DataBatchArgs(long nBatchSize, List<KeyValuePair<string, List<int>>> rgExpectedInputs, List<KeyValuePair<string, List<int>>> rgExpectedOutputs)
         {
             m_nBatchSize = (int)nBatchSize;
-            m_rgInputShape = rgInputShape;
-            m_rgOutputShape = rgOutputShape;
+            m_rgExpectedInputs = rgExpectedInputs;
+            m_rgExpectedOutputs = rgExpectedOutputs;
         }
 
         public List<NamedOnnxValue> Values
@@ -408,14 +398,52 @@ namespace Microsoft.ML.OnnxTraining
             get { return m_nBatchSize; }
         }
 
-        public List<int> InputShape
+        public List<KeyValuePair<string, List<int>>> Inputs
         {
-            get { return m_rgInputShape; }
+            get { return m_rgExpectedInputs; }
         }
 
-        public List<int> OutputShape
+        public List<KeyValuePair<string, List<int>>> Outpus
         {
-            get { return m_rgOutputShape; }
+            get { return m_rgExpectedOutputs; }
+        }
+
+        public List<int> GetInputAt(int nIdx, out string strName)
+        {
+            List<int> rg = new List<int>();
+
+            for (int i = 1; i < m_rgExpectedInputs[nIdx].Value.Count; i++)
+            {
+                rg.Add(m_rgExpectedInputs[nIdx].Value[i]);
+            }
+
+            strName = m_rgExpectedInputs[nIdx].Key;
+
+            while (rg.Count > 0 && rg[rg.Count - 1] == 1)
+            {
+                rg.RemoveAt(rg.Count - 1);
+            }
+
+            return rg;
+        }
+
+        public List<int> GetOutputAt(int nIdx, out string strName)
+        {
+            List<int> rg = new List<int>();
+
+            for (int i = 1; i < m_rgExpectedOutputs[nIdx].Value.Count; i++)
+            {
+                rg.Add(m_rgExpectedOutputs[nIdx].Value[i]);
+            }
+
+            strName = m_rgExpectedOutputs[nIdx].Key;
+
+            while (rg.Count > 0 && rg[rg.Count - 1] == 1)
+            {
+                rg.RemoveAt(rg.Count - 1);
+            }
+
+            return rg;
         }
     }
 }
