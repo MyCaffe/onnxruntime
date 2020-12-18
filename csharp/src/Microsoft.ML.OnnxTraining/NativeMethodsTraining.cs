@@ -92,7 +92,7 @@ namespace Microsoft.ML.OnnxTraining
     /// <param name="hInputShape">Specifies the OrtShape containing all input dimensions 'after' the batch but not including the batch size.</param>
     /// <param name="hOutputShape">Specifies the OrtShape containing all output dimensions 'after' the batch but not including the batch size.</param>
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-    delegate void OrtDataGetBatchCallback(long nBatchSize, IntPtr /* (OrtValueCollection*) */ colVal, IntPtr /* (OrtShape*) */ hInputShape, IntPtr /* (OrtShape*) */ hOutputShape);
+    delegate void OrtDataGetBatchCallback(long nBatchSize, IntPtr /* (OrtValueCollection*) */ colVal);
 
     // NOTE: The order of the APIs in this struct should match exactly that in
     // OrtTrainingApi ort_training_api_1_to_6 (orttraining_c_api.cc)
@@ -123,15 +123,16 @@ namespace Microsoft.ML.OnnxTraining
         public IntPtr RunTraining;
         public IntPtr EndTraining;
 
+        public IntPtr CreateValueCollection;
+        public IntPtr CloneValueCollection;
+
         public IntPtr GetCount;
         public IntPtr GetCapacity;
         public IntPtr GetAt;
         public IntPtr SetAt;
 
-        public IntPtr GetDimCount;
-        public IntPtr GetDimAt;
-
         public IntPtr ReleaseTrainingParameters;
+        public IntPtr ReleaseValueCollection;
     };
 
     internal static class NativeMethodsTraining
@@ -153,6 +154,10 @@ namespace Microsoft.ML.OnnxTraining
             OrtCreateTrainingParameters = (DOrtCreateTrainingParameters)Marshal.GetDelegateForFunctionPointer(api_.CreateTrainingParameters, typeof(DOrtCreateTrainingParameters));
             OrtReleaseTrainingParameters = (DOrtReleaseTrainingParameters)Marshal.GetDelegateForFunctionPointer(api_.ReleaseTrainingParameters, typeof(DOrtReleaseTrainingParameters));
             OrtCloneTrainingParameters = (DOrtCloneTrainingParameters)Marshal.GetDelegateForFunctionPointer(api_.CloneTrainingParameters, typeof(DOrtCloneTrainingParameters));
+
+            OrtCreateValueCollection = (DOrtCreateValueCollection)Marshal.GetDelegateForFunctionPointer(api_.CreateValueCollection, typeof(DOrtCreateValueCollection));
+            OrtReleaseValueCollection = (DOrtReleaseValueCollection)Marshal.GetDelegateForFunctionPointer(api_.ReleaseValueCollection, typeof(DOrtReleaseValueCollection));
+            OrtCloneValueCollection = (DOrtCloneValueCollection)Marshal.GetDelegateForFunctionPointer(api_.CloneValueCollection, typeof(DOrtCloneValueCollection));
 
             OrtSetParameter_string = (DOrtSetParameter_string)Marshal.GetDelegateForFunctionPointer(api_.SetTrainingParameter_string, typeof(DOrtSetParameter_string));
             OrtGetParameter_string = (DOrtGetParameter_string)Marshal.GetDelegateForFunctionPointer(api_.GetTrainingParameter_string, typeof(DOrtGetParameter_string));
@@ -179,9 +184,6 @@ namespace Microsoft.ML.OnnxTraining
             OrtGetCapacity = (DOrtGetCapacity)Marshal.GetDelegateForFunctionPointer(api_.GetCapacity, typeof(DOrtGetCapacity));
             OrtGetAt = (DOrtGetAt)Marshal.GetDelegateForFunctionPointer(api_.GetAt, typeof(DOrtGetAt));
             OrtSetAt = (DOrtSetAt)Marshal.GetDelegateForFunctionPointer(api_.SetAt, typeof(DOrtSetAt));
-
-            OrtGetDimCount = (DOrtGetDimCount)Marshal.GetDelegateForFunctionPointer(api_.GetDimCount, typeof(DOrtGetDimCount));
-            OrtGetDimAt = (DOrtGetDimAt)Marshal.GetDelegateForFunctionPointer(api_.GetDimAt, typeof(DOrtGetDimAt));
         }
 
         [DllImport(nativeLib, CharSet = charSet)]
@@ -301,7 +303,9 @@ namespace Microsoft.ML.OnnxTraining
 
         public delegate IntPtr /* OrtStatus */DOrtInitializeTraining(
                                                 IntPtr /* (OrtEnv*) */ env,
-                                                IntPtr /* (OrtTrainingParameters*) */ trainParam);
+                                                IntPtr /* (OrtTrainingParameters*) */ trainParam,
+                                                IntPtr /* (OrtValueCollection*) */ expectedInputs,
+                                                IntPtr /* (OrtValueCollection*) */ expectedOutputs);
         public static DOrtInitializeTraining OrtInitializeTraining;
 
         public delegate IntPtr /* OrtStatus */DOrtRunTraining(
@@ -315,6 +319,15 @@ namespace Microsoft.ML.OnnxTraining
         #endregion
 
         #region OrtValueCollection
+
+        public delegate IntPtr /*(OrtStatus*)*/ DOrtCreateValueCollection(out IntPtr /*(OrtValueCollection**)*/ col);
+        public static DOrtCreateValueCollection OrtCreateValueCollection;
+
+        public delegate void DOrtReleaseValueCollection(IntPtr /*(OrtValueCollection*)*/col);
+        public static DOrtReleaseValueCollection OrtReleaseValueCollection;
+
+        public delegate IntPtr /*(OrtStatus*)*/ DOrtCloneValueCollection(IntPtr /*(OrtValueCollection*)*/ col, out IntPtr /*(OrtValueCollection**)*/ output);
+        public static DOrtCloneValueCollection OrtCloneValueCollection;
 
         public delegate IntPtr /* OrtStatus */DOrtGetCount(
                                                 IntPtr /* (OrtValueCollection*) */ colVal,
@@ -341,21 +354,6 @@ namespace Microsoft.ML.OnnxTraining
                                                 //[MarshalAs(UnmanagedType.LPStr)]string strName
                                                 byte[] strName);
         public static DOrtSetAt OrtSetAt;
-
-        #endregion
-
-        #region OrtShape
-
-        public delegate IntPtr /* OrtStatus */DOrtGetDimCount(
-                                                IntPtr /* (OrtShape*) */ shape,
-                                                out UIntPtr val);
-        public static DOrtGetDimCount OrtGetDimCount;
-
-        public delegate IntPtr /* OrtStatus */DOrtGetDimAt(
-                                                IntPtr /* (OrtShape*) */ shape,
-                                                int nIdx,
-                                                out UIntPtr val);
-        public static DOrtGetDimAt OrtGetDimAt;
 
         #endregion
 
