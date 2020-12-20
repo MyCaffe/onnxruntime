@@ -72,7 +72,7 @@ namespace Microsoft.ML.OnnxTraining.MNISTSample
             m_nTestingDataIdx = 0;
 
             // Setup the OnnxRuntime instance.
-            OrtEnv.SetLogLevel(LogLevel.Error);
+            OrtEnv.SetLogLevel(LogLevel.Warning);
             OrtEnv env = OrtEnv.Instance();
 
             // Initialize the training session.
